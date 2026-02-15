@@ -14,7 +14,7 @@ This folder contains:
    - src/live_event_generator.py
 
 Generate live events (JSONL) for a given day:
-  python src/live_event_generator.py --out data/live_events --date 2025-01-15 --events 2000
+  python3 src/live_event_generator.py --out data/live_events --date 2025-01-15 --events 2000
 
 Generate using today's date:
   python src/live_event_generator.py --out data/live_events --events 2000
