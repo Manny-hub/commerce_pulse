@@ -3,9 +3,12 @@ import glob
 from datetime import datetime
 import hashlib
 
+
 def hash(data):
-    """Generate hash of data."""
-    return hashlib.md5(str(data).encode()).hexdigest()
+    """Generate a stable MD5 hash of a dictionary or list."""
+    # Ensure keys are always in the same order before hashing
+    encoded_data = json.dumps(data, sort_keys=True, default=str).encode('utf-8')
+    return hashlib.md5(encoded_data).hexdigest()
 
 def ingest_at():
     """Return current timestamp for ingestion."""
