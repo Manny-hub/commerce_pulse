@@ -22,3 +22,5 @@ def read_json(file_pattern):
         with open(file, 'r') as f:
             data.append(json.load(f))
     return data if len(data) > 1 else data[0] if data else None
+
+

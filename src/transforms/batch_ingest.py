@@ -41,8 +41,12 @@ def read_event(file_path):
         events.append({
             "event_id": event_id,
             "event_type": event_type,
-            "event_time": record.get("created_at") or record.get("paid_at") or record.get("refundedAt") or record.get("timestamp") or datetime.now(timezone.utc).isoformat(),
-            "vendor": record.get("vendor", "unknown"),
+            "event_time": record.get("created_at") or 
+                          record.get("paid_at") or 
+                          record.get("refundedAt") or 
+                          record.get("timestamp") or 
+                          datetime.now(timezone.utc).isoformat(),
+            "vendor": record.get("carrier", "unknown"),
             "payload": record,
             "ingested_at": ingest_at()
         })
