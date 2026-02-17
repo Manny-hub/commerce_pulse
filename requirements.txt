@@ -1,4 +1,4 @@
-pymongo 
-psycopg2-binary 
-pandas 
+pymongo
+psycopg2-binary
+pandas
 python-dotenv
