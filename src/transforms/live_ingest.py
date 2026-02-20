@@ -83,7 +83,7 @@ def upsert_events(events: Dict):
         
         
 def main():
-    data = fetch_data(url)
+    data = fetch_data()
     events = get_data(data.get("events", []))
     
     for event in events:
