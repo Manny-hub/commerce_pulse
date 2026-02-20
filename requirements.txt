@@ -2,3 +2,7 @@ pymongo
 psycopg2-binary
 pandas
 python-dotenv
+apache-airflow
+requests
+google-cloud-bigquery
+google-cloud-storage

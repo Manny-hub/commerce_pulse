@@ -4,6 +4,9 @@ from dotenv import load_dotenv
 import os 
 from datetime import datetime, timezone
 from pymongo import MongoClient
+import requests    
+from typing import Dict, List, Any 
+
 
 load_dotenv()
 
@@ -54,9 +57,8 @@ def upsert_events(events: Dict):
         
         
 def main():
-    file_path = "data/events/events.jsonl"
     data = fetch_data(url)
-    events = get_data(data)
+    events = get_data(data.get("events", []))
     
     for event in events:
         upsert_events(event)
