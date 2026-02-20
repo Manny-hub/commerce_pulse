@@ -2,3 +2,10 @@ venv
 /venv
 /venv 
 .env 
+airflow/
+airflow/
+*__pycache__
+__pycache__/
+*.pyc
+src/utils/__pycache__/commons.cpython-312.pyc
+*logs/
