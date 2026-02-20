@@ -14,19 +14,45 @@ client = MongoClient(os.getenv("MONGO_URI"))
 db = client[os.getenv("MONGO_DBNAME")]
 collection = db[os.getenv("MONGO_COLLECTION")]
 
-url ="https://commerce-pulse-api.onrender.com/events?events=2000"
+url ="https://commerce-pulse-api.onrender.com/events"
 
-def fetch_data(url):
-    data = []
-    request = requests.get(url)
-    if request.status_code == 200:
-        data = request.json()
-    return data 
+import requests
 
+def fetch_data(**context):
+    # Get the Airflow execution interval
+    start = context["data_interval_start"].isoformat()
+    end = context["data_interval_end"].isoformat()
 
-def get_data(data: list) -> list:
-    records = data if isinstance(data, list) else [data]
+    url = "https://api.commercepulse.com/events"
+
     events = []
+    offset = 0
+    limit = 1000  # or max allowed per API request
+
+    while True:
+        params = {
+            "start_date": start,
+            "end_date": end,
+            "limit": limit,
+            "offset": offset
+        }
+
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        events = response.json()
+
+        if not events:  # no more events
+            break
+
+        events.extend(events)
+        offset += limit
+
+    return events
+
+
+def get_data(event: list) -> list:
+    records = event if isinstance(event, list) else [event]
+    all_events = []
     
     for record in records:
         events.append({
@@ -38,7 +64,7 @@ def get_data(data: list) -> list:
             "ingested_at": record.get("ingested_at")
         })
         
-    return events 
+    return all_events 
         
 def upsert_events(events: Dict):
     """

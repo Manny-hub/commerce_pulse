@@ -21,6 +21,6 @@ with DAG(
 
     ingest_task = PythonOperator(
         task_id="fetch_and_upsert_to_mongo",
-        task_id='fetch_and_upsert_to_mongo',
         python_callable=run_ingest,
+        provide_context=True
     )
