@@ -8,4 +8,4 @@ project_root = os.path.abspath(os.path.join(current_dir, ".."))
 if project_root not in sys.path:
     sys.path.append(project_root)
 
-from src.transforms.live_ingest import main as run_ingest
+from src.transforms.live_ingest import main

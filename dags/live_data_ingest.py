@@ -2,7 +2,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils import timezone
 from datetime import timedelta
-from utils import run_ingest
+from utils import main
 
 default_args = {
     "owner": "airflow",
@@ -21,4 +21,4 @@ with DAG(
 
     ingest_task = PythonOperator(
         task_id="fetch_and_upsert_to_mongo",
-        python_callable=run_ingest    )
+        python_callable=main   )
