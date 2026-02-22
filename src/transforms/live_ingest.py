@@ -3,7 +3,8 @@ from dotenv import load_dotenv
 from pymongo import MongoClient
 import requests
 from typing import Dict
-
+from live_event_generator import main as fetch_data 
+from tqdm.auto import tqdm
 load_dotenv()
 
 client = MongoClient(os.getenv("MONGO_URI"))
@@ -11,32 +12,23 @@ db = client[os.getenv("MONGO_DBNAME")]
 collection = db[os.getenv("MONGO_COLLECTION")]
 
 
-def fetch_data():
+# def fetch_data():
     
-    limit = 1000
-    offset = 0
-    events = []
-
-    url = "https://commerce-pulse-api.onrender.com/events"
+#     events = []
+#     live_data = main()
+#     offset = 0
+#     limit = 100
     
-    while True:
-        params = {
-            "limit": limit,
-            "offset": offset
-        }
+#     for raw in tqdm(data):
+        
 
-        response = requests.get(url, params=params)
-        response.raise_for_status()
+#         if not page_events:
+#             break
 
-        page_events = response.json()
+#         events.extend(page_events)
+#         offset += limit
 
-        if not page_events:
-            break
-
-        events.extend(page_events)
-        offset += limit
-
-    return events
+#     return events
 
 def get_data(events: list) -> list:
     all_events = []
@@ -66,6 +58,12 @@ def upsert_events(event: Dict):
 
 
 def main():
+    events = []
+
+    data = fetch_data()
+    for raw in tqdm(data):
+        events.append(raw)
+    
     data = fetch_data()
     events = get_data(data)
     for event in events:
