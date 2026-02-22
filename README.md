@@ -1,107 +1,232 @@
-# CommercePulse ETL
+# CommercePulse Data Engineering Case Study
 
-## Overview
-
-This project ingests both historical and live transactional data into MongoDB, normalizes inconsistent schemas using pandas, and loads a dimensional model into BigQuery for analytics.
-
-The pipeline prioritizes correctness, auditability, and maintainability.
+**Reliable Analytics from Legacy Batch Data & Live Events**
 
 ---
 
-## Architecture
+## 📌 Overview
 
-Sources (historical backfills + live updates)  
-→ MongoDB (raw operational data)  
-→ Extract (pymongo)  
-→ Transform + Dedupe (pandas)  
-→ Load (BigQuery star schema)
+CommercePulse is an e-commerce aggregation platform operating across African markets. As the business scaled, inconsistent historical data and unreliable live events led to:
 
-### BigQuery Tables
+* Conflicting revenue reports
+* Missing refunds
+* Duplicate and late events
+* No audit trail
+* Unsafe reprocessing
 
-#### Dimensions
-- `dim_customer`
-- `dim_product`
-- `dim_date`
+This project implements a **hybrid, idempotent data pipeline** that supports:
 
-#### Facts
-- `fact_orders` (snapshot)
-- `fact_payments` (append-only)
-- `fact_refunds` (append-only)
-- `fact_shipments` (append-only)
-- `fact_order_daily` (aggregates)
+* Historical batch bootstrap
+* Continuous live event ingestion
+* Late and duplicate handling
+* Analytics-ready warehouse tables
+* Full auditability
 
 ---
 
-## Design Decisions & Trade-offs
+# 🏗 Architecture Overview
 
-### Unified Raw Store (Historical + Live)
+## High-Level System Architecture
 
-**Decision:** Both batch backfills and live updates are ingested into MongoDB as raw operational data.
+```
+             Historical JSON Dumps
+                   (Batch)
+                       │
+                       ▼
+               ┌────────────────┐
+               │   MongoDB      │
+               │  events_raw    │
+               │ (Raw Store)    │
+               └────────────────┘
+                       ▲
+                       │ Upsert (event_id)
+                       │
+        ┌─────────────────────────────────┐
+        │                                 │
+   Live Event API                   JSONL Files
+   (Out-of-order,                   data/YYYY-MM-DD
+    duplicates)                           │
+        │                                 │
+        └─────────────────────┬───────────┘
+                              ▼
+                       Raw Landing Layer
+```
 
-**Trade-off:** Increased storage footprint and duplicate persistence.
-
-**Reasoning:** Provides a single source of truth, replay capability, and consistent schema reconciliation.
-
----
-
-### Batch Processing over Streaming
-
-**Decision:** Transformations run in scheduled batch jobs (pandas), even though live data is continuously ingested.
-
-**Trade-off:** Analytics are near-real-time, not true real-time.
-
-**Reasoning:** Simplifies deduplication, late-arriving data handling, and snapshot recomputation while maintaining correctness.
-
----
-
-### MongoDB vs BigQuery Roles
-
-**Decision:** MongoDB stores raw operational data; BigQuery stores curated, analytics-ready tables.
-
-**Trade-off:** Data exists in two systems.
-
-**Reasoning:** Clear separation of operational and analytical workloads.
-
----
-
-### Append-Only vs Snapshot Modeling
-
-**Decision:**
-- Event tables (`fact_payments`, `fact_refunds`, `fact_shipments`) are append-only.
-- `fact_orders` is recomputed as a snapshot each run.
-
-**Trade-off:** Snapshot recomputation increases compute cost.
-
-**Reasoning:** Ensures deterministic results and simplifies reconciliation of updates.
+MongoDB acts as the **immutable system of record**.
 
 ---
 
-### Pandas vs SQL
+## Transformation & Warehouse Layer
 
-**Decision:** Transformations are implemented in pandas.
+```
+            MongoDB (events_raw)
+                     │
+                     │ Incremental Extraction
+                     ▼
+            Pandas Transformation
+        (Normalization + Reconciliation)
+                     │
+                     ▼
+               BigQuery Warehouse
+         ┌────────────────────────────┐
+         │ Dimensions                 │
+         │ - dim_customer             │
+         │ - dim_product              │
+         │ - dim_date                 │
+         │                            │
+         │ Facts                      │
+         │ - fact_orders              │
+         │ - fact_payments            │
+         │ - fact_refunds             │
+         │ - fact_shipments           │
+         │ - fact_order_daily         │
+         └────────────────────────────┘
+```
 
-**Trade-off:** Limited horizontal scalability compared to distributed engines.
-
-**Reasoning:** Better flexibility for inconsistent Mongo schemas and nested structures.
+BigQuery serves business intelligence and analytics use cases.
 
 ---
 
-### Correctness vs Performance
+# 🔹 Data Model
 
-**Decision:** Prioritize correctness.
+## MongoDB — Raw Event Schema
 
-- Deterministic hashing for dedupe
-- Explicit timestamp normalization
+```
+event_id        (unique, deterministic)
+event_type
+event_time
+vendor
+payload         (original record)
+ingested_at
+```
 
-**Trade-off:** Slightly higher compute cost.
-
-**Reasoning:** Ensures reproducible analytics outputs.
+* Upsert by `event_id`
+* No transformations applied
+* Schema-flexible
+* Unique index enforced
 
 ---
 
-## Assumptions
+# 🔹 Data Flow
 
-- `order_id` uniquely identifies orders.
-- Payments marked `SUCCESS` represent revenue.
-- All timestamps are normalized to UTC.
-- Data volume fits within pandas memory constraints.
+## Phase 1 — Historical Bootstrap
+
+Location:
+
+```
+data/bootstrap/
+```
+
+Steps:
+
+* Read raw JSON exports
+* Wrap as synthetic events
+* Generate deterministic `event_id`
+* Insert into MongoDB
+* Preserve original payload
+
+No cleaning performed.
+
+---
+
+## Phase 2 — Live Event Ingestion
+
+Generate:
+
+```
+python src/live_event_generator.py --out data/live_events --events 2000
+```
+
+Steps:
+
+* Read JSONL line-by-line
+* Upsert into MongoDB
+* Accept duplicates, late events, schema drift
+
+---
+
+# 🔁 Idempotency Strategy
+
+* Unique `event_id` index
+* MongoDB upsert
+* Incremental extraction
+* Safe re-runs
+* No full reloads
+
+---
+
+# 📊 Analytics Capabilities
+
+The warehouse supports:
+
+* Daily gross vs net revenue
+* Vendor payment success rate
+* Average order-to-payment time
+* Refund rate (including partial refunds)
+* Late-arriving event percentage
+* Top products by revenue
+
+---
+
+# ⚖ Key Design Decisions
+
+| Concern            | Decision                       |
+| ------------------ | ------------------------------ |
+| Historical vs Live | Unified as event model         |
+| Raw vs Analytics   | MongoDB vs BigQuery separation |
+| Orders table       | Upsert current state           |
+| Payments/Refunds   | Append-only                    |
+| Transform layer    | Pandas                         |
+| Idempotency        | Enforced at ingestion          |
+
+Correctness prioritized over premature optimization.
+
+---
+
+# 🧪 Data Quality Monitoring
+
+Daily checks include:
+
+* Duplicate event rate
+* Late-arriving percentage
+* Refund reconciliation
+* Revenue drift
+* Payment without order
+
+Reports stored under:
+
+```
+reports/YYYY-MM-DD/
+```
+
+---
+
+# 🚀 Setup
+
+## Requirements
+
+* Python 3.9+
+* MongoDB (local)
+* BigQuery dataset
+* Git
+
+## Installation
+
+```
+python -m venv venv
+source venv/bin/activate
+pip install pymongo pandas python-dotenv
+```
+
+## Environment Variables
+
+```
+MONGO_URI=mongodb://localhost:27017
+MONGO_DB=commercepulse
+```
+
+Create index:
+
+```
+db.events_raw.createIndex({"event_id": 1}, {unique: true})
+```
