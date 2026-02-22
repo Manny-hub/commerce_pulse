@@ -1,13 +1,10 @@
 import json 
 from src.utils.commons import hash, ingest_at, read_json, get_event_type
 from src.database.upsert import bulk_upsert_events
-from dotenv import load_dotenv
-import os 
 from datetime import datetime, timezone
 from pymongo import MongoClient
 import glob
 
-load_dotenv()
 
 paths = "data/bootstrap/*.json" 
 

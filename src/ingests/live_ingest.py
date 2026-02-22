@@ -1,6 +1,5 @@
 import os
 from dotenv import load_dotenv
-from tqdm.auto import tqdm
 from src.utils.commons import fetch_events
 from src.database.upsert import bulk_upsert_events
 
