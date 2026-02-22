@@ -1,41 +1,25 @@
 import os
 from dotenv import load_dotenv
-from pymongo import MongoClient
-import requests
-from typing import Dict
-from live_event_generator import main as fetch_data 
 from tqdm.auto import tqdm
+from src.utils.commons import fetch_events
+from src.database.upsert import bulk_upsert_events
+
 load_dotenv()
 
-client = MongoClient(os.getenv("MONGO_URI"))
-db = client[os.getenv("MONGO_DBNAME")]
-collection = db[os.getenv("MONGO_COLLECTION")]
+api_url = "https://commerce-pulse-api.onrender.com/events?events=2000"
 
 
-# def fetch_data():
-    
-#     events = []
-#     live_data = main()
-#     offset = 0
-#     limit = 100
-    
-#     for raw in tqdm(data):
-        
-
-#         if not page_events:
-#             break
-
-#         events.extend(page_events)
-#         offset += limit
-
-#     return events
-
-def get_data(events: list) -> list:
+def transform_events(events):
+    """
+    Normalize API response into MongoDB schema.
+    """
     all_events = []
 
     for record in events:
+        event_id = record.get("event_id") or hash(record)
+        
         all_events.append({
-            "event_id": record.get("event_id"),
+            "event_id": event_id,
             "event_type": record.get("event_type"),
             "event_time": record.get("event_time"),
             "vendor": record.get("vendor"),
@@ -46,25 +30,22 @@ def get_data(events: list) -> list:
     return all_events
 
 
-def upsert_events(event: Dict):
-    try:
-        return collection.update_one(
-            {"event_id": event["event_id"]},
-            {"$set": event},
-            upsert=True
-        )
-    except Exception as e:
-        print(f"Error: {e}")
-
-
 def main():
-    events = []
+    print("Fetching events from API...")
+    raw_events = fetch_events(api_url)
 
-    data = fetch_data()
-    for raw in tqdm(data):
-        events.append(raw)
-    
-    data = fetch_data()
-    events = get_data(data)
-    for event in events:
-        upsert_events(event)
+    if not raw_events:
+        print("No events fetched.")
+        return
+
+    print("Transforming events...")
+    transformed_events = transform_events(raw_events)
+
+    print("Upserting into MongoDB...")
+    bulk_upsert_events(transformed_events)
+
+    print("Ingestion completed successfully.")
+
+
+if __name__ == "__main__":
+    main()
