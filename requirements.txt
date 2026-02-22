@@ -1,0 +1,5 @@
+pandas>=2.0
+pyarrow>=14.0
+pymongo>=4.6
+google-cloud-bigquery>=3.17
+google-cloud-bigquery-storage>=2.24

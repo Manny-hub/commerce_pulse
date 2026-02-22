@@ -28,8 +28,6 @@ def _dim_customer(orders_df: pd.DataFrame) -> pd.DataFrame:
         customer_id=("customer_id", "first"),
         email=("customer_email", "first"),
         phone=("customer_phone", "first"),
-        first_seen_ts=("order_created_at", "min"),
-        last_seen_ts=("order_created_at", "max"),
     )
     return grp
 

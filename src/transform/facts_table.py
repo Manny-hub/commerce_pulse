@@ -1,9 +1,9 @@
 from __future__ import annotations
 import pandas as pd
 
-from .dimensions import _stable_customer_key
+from src.transform.dim_table import _stable_customer_key
 
-def build_fact_orders(
+def _fact_orders_agg(
     orders_df: pd.DataFrame,
     payments_df: pd.DataFrame,
     refunds_df: pd.DataFrame,
@@ -63,7 +63,7 @@ def build_fact_orders(
     return fact
 
 
-def build_fact_order_daily(fact_orders_df: pd.DataFrame) -> pd.DataFrame:
+def _fact_order_daily(fact_orders_df: pd.DataFrame) -> pd.DataFrame:
     """
     Aggregates per day (date_id) — you can extend this by region/currency easily.
     """

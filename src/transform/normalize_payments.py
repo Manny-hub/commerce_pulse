@@ -1,3 +1,10 @@
+from __future__ import annotations
+
+import re
+from typing import Any, Dict, Iterable, List, Optional, Tuple
+
+import pandas as pd
+
 def normalize_payments(raw_payments: List[Dict[str, Any]]) -> pd.DataFrame:
     rows: List[Dict[str, Any]] = []
 
