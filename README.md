@@ -1,4 +1,4 @@
-# CommercePulse Data Engineering Case Study
+# CommercePulse Case Study
 
 **Reliable Analytics from Legacy Batch Data & Live Events**
 
