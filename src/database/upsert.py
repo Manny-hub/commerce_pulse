@@ -2,12 +2,23 @@ from pymongo import MongoClient, UpdateOne
 from pymongo.results import BulkWriteResult
 from typing import List, Dict, Optional
 import os
-
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
 
 def get_collection():
-    client = MongoClient(os.getenv("MONGO_URI"))
-    db = client[os.getenv("MONGO_DBNAME")]
-    return client, db[os.getenv("MONGO_COLLECTION")]
+    mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+    db_name = os.getenv("MONGO_DBNAME") or os.getenv("MONGO_DB")
+    collection_name = os.getenv("MONGO_COLLECTION", "events_raw")
+
+    if not db_name:
+        raise ValueError("Missing Mongo DB name: set MONGO_DBNAME or MONGO_DB in environment.")
+
+    client = MongoClient(mongo_uri)
+    db = client[db_name]
+    return client, db[collection_name]
 
 
 def bulk_upsert_events(events: List[Dict]) -> Optional[BulkWriteResult]:

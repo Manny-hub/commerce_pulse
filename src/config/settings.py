@@ -21,8 +21,8 @@ class BigQueryConfig:
 def load_mongo_config() -> MongoConfig:
     return MongoConfig(
         uri=os.getenv("MONGO_URI"),
-        db=os.getenv("MONGO_DBNAME"),
-        col=os.getenv("MONGO_COLLECTION"),  
+        db=os.getenv("MONGO_DBNAME") or os.getenv("MONGO_DB"),
+        col=os.getenv("MONGO_COLLECTION", "events_raw"),
     )
 
 def load_bq_config() -> BigQueryConfig:

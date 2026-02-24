@@ -1,8 +1,6 @@
-import json 
-from src.utils.commons import hash, ingest_at, read_json, get_event_type
+from src.utils.commons import compute_hash, ingest_at, read_json, get_event_type
 from src.database.upsert import bulk_upsert_events
 from datetime import datetime, timezone
-from pymongo import MongoClient
 import glob
 
 
@@ -22,7 +20,7 @@ def read_event(file_path):
     events = []
     for record in records:
         # Generate ID based on the specific record content
-        event_id = hash(record)
+        event_id = compute_hash(record)
         
         events.append({
             "event_id": event_id,
@@ -51,10 +49,12 @@ def main():
             # Generate the list of synthetic events for this file
             synthetic_events = read_event(file_path)
             
-            for event_data in synthetic_events:
-                result = bulk_upsert_events(event_data)
-                
-                status = "Updated" if result.matched_count > 0 else "Inserted"
+            result = bulk_upsert_events(synthetic_events)
+            if result is not None:
+                print(
+                    f"Upserted: matched={result.matched_count}, "
+                    f"modified={result.modified_count}, upserted={result.upserted_count}"
+                )
                 
             print(f"Finished {file_path}: {len(synthetic_events)} records processed.")
             
