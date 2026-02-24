@@ -1,6 +1,10 @@
 from __future__ import annotations
 import os
 from dataclasses import dataclass
+from dotenv import load_dotenv
+
+
+load_dotenv()  # Load environment variables from .env file
 
 @dataclass(frozen=True)
 class MongoConfig:
@@ -16,14 +20,14 @@ class BigQueryConfig:
 
 def load_mongo_config() -> MongoConfig:
     return MongoConfig(
-        uri=os.environ["MONGO_URI"],
-        db=os.environ["MONGO_DBNAME"],
+        uri=os.getenv("MONGO_URI"),
+        db=os.getenv("MONGO_DBNAME"),
         col=os.getenv("MONGO_COLLECTION"),  
     )
 
 def load_bq_config() -> BigQueryConfig:
     return BigQueryConfig(
-        project_id=os.environ["BQ_PROJECT_ID"],
-        dataset_id=os.environ["BQ_DATASET_ID"],
+        project_id=os.getenv("BQ_PROJECT_ID"),
+        dataset_id=os.getenv("BQ_DATASET_ID"),
         location=os.getenv("BQ_LOCATION", "EU"),
     )

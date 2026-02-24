@@ -1,46 +1,97 @@
 from __future__ import annotations
 
-import re
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, List
 
 import pandas as pd
 
-def normalize_payments(raw_payments: List[Dict[str, Any]]) -> pd.DataFrame:
+from src.utils.helpers import coalesce, deep_get, parse_ts, normalize_currency, normalize_status
+
+
+def normalize_payments(raw_docs: List[Dict[str, Any]]) -> pd.DataFrame:
+    """
+    Accepts the full list of raw MongoDB documents (all event types).
+    Filters to payment events and normalises into 1 row per payment.
+
+    Real payload field variations observed in data:
+      historical_payment:
+        order_id | paid_at | payment_status | amountPaid | currencyCode
+        channel | transaction_id
+      payment_succeeded:
+        order (string order_id) | timestamp (epoch) | state | amt | ccy
+        paymentMethod | txn
+    """
+    PAYMENT_EVENT_TYPES = {"historical_payment", "payment_succeeded"}
+
     rows: List[Dict[str, Any]] = []
 
-    for doc in raw_payments:
-        order_id = coalesce(doc.get("orderRef"), doc.get("order_id"), doc.get("order"))
+    for doc in raw_docs:
+        if doc.get("event_type") not in PAYMENT_EVENT_TYPES:
+            continue
 
-        # time can be timestamp epoch OR paid_at OR paidAt
-        payment_ts = parse_ts(coalesce(doc.get("timestamp"), doc.get("paid_at"), doc.get("paidAt")))
+        payload = doc.get("payload") or {}
 
-        # status can be state OR payment_status OR status
-        payment_status = normalize_status(coalesce(doc.get("state"), doc.get("payment_status"), doc.get("status")))
-
-        amount = coalesce(doc.get("amt"), doc.get("amountPaid"), doc.get("amount"))
-        currency = normalize_currency(coalesce(doc.get("ccy"), doc.get("currencyCode"), doc.get("currency")))
-
-        method = coalesce(doc.get("paymentMethod"), doc.get("channel"), doc.get("method"))
-        txn_id = coalesce(doc.get("txn"), doc.get("transaction_id"), doc.get("txRef"))
-
-        rows.append(
-            {
-                "order_id": order_id,
-                "payment_ts": payment_ts,
-                "payment_status": payment_status,
-                "amount": amount,
-                "currency": currency,
-                "method": method,
-                "txn_id": txn_id,
-            }
+        order_id = coalesce(
+            payload.get("order_id"),
+            payload.get("orderRef"),
+            payload.get("order"),          # payment_succeeded uses plain string
         )
 
+        payment_ts = parse_ts(coalesce(
+            payload.get("paid_at"),
+            payload.get("paidAt"),
+            payload.get("timestamp"),      # epoch in payment_succeeded
+        ))
+
+        payment_status = normalize_status(coalesce(
+            payload.get("payment_status"),
+            payload.get("state"),
+            payload.get("status"),
+        ))
+
+        amount = coalesce(
+            payload.get("amountPaid"),
+            payload.get("amt"),
+            payload.get("amount"),
+        )
+        currency = normalize_currency(coalesce(
+            payload.get("currencyCode"),
+            payload.get("ccy"),
+            payload.get("currency"),
+        ))
+
+        method = coalesce(
+            payload.get("channel"),
+            payload.get("paymentMethod"),
+            payload.get("method"),
+        )
+        txn_id = coalesce(
+            payload.get("transaction_id"),
+            payload.get("txn"),
+            payload.get("txRef"),
+        )
+
+        rows.append({
+            "order_id": order_id,
+            "payment_ts": payment_ts,
+            "payment_status": payment_status,
+            "amount": amount,
+            "currency": currency,
+            "method": method,
+            "txn_id": txn_id,
+        })
+
     df = pd.DataFrame(rows)
+    if df.empty:
+        return df
+
     df["order_id"] = df["order_id"].astype("string")
     df["txn_id"] = df["txn_id"].astype("string")
     df["method"] = df["method"].astype("string")
     df["payment_status"] = df["payment_status"].astype("string")
 
-    # remove obvious junk
     df = df.dropna(subset=["order_id", "payment_ts"])
+
+    # Deduplicate on txn_id to prevent double-counting on re-runs
+    df = df.dropna(subset=["txn_id"]).drop_duplicates(subset=["txn_id"], keep="last")
+
     return df

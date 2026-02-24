@@ -9,7 +9,7 @@ from typing import List, Dict, Optional, Generator
 
 BASE_DIR = Path("data")
 
-def hash(data):
+def compute_hash(data):
     """Generate a stable MD5 hex digest of a dictionary or list."""
     encoded = json.dumps(data, sort_keys=True, default=str).encode('utf-8')
     return hashlib.md5(encoded).hexdigest()
@@ -23,7 +23,6 @@ def read_json(file_pattern):
     files = glob.glob(file_pattern)
     if not files:
         return None
-    
     data = []
     for file in files:
         with open(file, 'r') as f:
@@ -34,11 +33,9 @@ def get_latest_jsonl_file():
     """Find the first .jsonl file in the most recent date-named directory."""
     if not BASE_DIR.exists():
         return None
-        
     date_folders = sorted([f for f in BASE_DIR.iterdir() if f.is_dir()])
     if not date_folders:
         return None
-    
     return next(date_folders[-1].glob("*.jsonl"), None)
 
 def read_jsonl(file):
@@ -67,7 +64,6 @@ def get_event_type(file_path):
         "shipment": "historical_shipment",
         "refund": "historical_refund"
     }
-    # Return the first match found, otherwise default
     for key, event_type in mapping.items():
         if key in name:
             return event_type
